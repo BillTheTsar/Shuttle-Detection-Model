@@ -1,0 +1,13 @@
+pandas
+torch
+huggingface-hub
+matplotlib
+numpy
+opencv-python
+pandas
+pillow
+tensorboard
+tensorboard-data-server
+torchaudio
+torchvision
+PyYAML
