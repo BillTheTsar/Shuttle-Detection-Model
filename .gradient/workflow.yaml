@@ -1,0 +1,16 @@
+version: 1
+
+workflows:
+  train:
+    jobs:
+      - name: shuttle-detection-training
+        machine: A4000
+        container: paperspace/gradient-pytorch:latest
+        volumes:
+          - id: dse4hvlh99yykn8
+            mountPath: /sequences
+        command: |
+          pip install -r requirements.txt
+          apt-get update && apt-get install -y unzip
+          unzip '/sequences/*.zip' -d /sequences/dataset
+          python scripts/train_stage1.py --data-dir /sequences/dataset
