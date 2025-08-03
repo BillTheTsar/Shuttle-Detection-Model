@@ -16,14 +16,13 @@ jobs:
 
   TrainModel:
     resources:
-      instance-type: A4000-8C  # <-- Check exact type in Paperspace UI
+      instance-type: A4000
     needs:
       - CloneRepo
     inputs:
       repo: CloneRepo.outputs.repo
     uses: script@v1
     with:
-      image: paperspace/gradient-pytorch:latest
       script: |
         set -ex  # Exit on error and print all commands
         echo "=== Environment Info ==="
@@ -34,18 +33,25 @@ jobs:
         ls -al /inputs || { echo "No /inputs found"; exit 1; }
         ls -al /inputs/repo || { echo "Repo not found under /inputs/repo"; exit 1; }
 
-        echo "=== Changing directory ==="
         cd /inputs/repo
-
-        echo "=== Current directory contents ==="
+        echo "Current working directory:"
+        pwd
+        echo "Listing contents:"
         ls -R
+        echo "Installing dependencies..."
+        pip install -r requirements.txt
+        pip install huggingface_hub
 
-        echo "=== Upgrading pip and installing dependencies ==="
-        pip install --upgrade pip
-        pip install -r requirements.txt huggingface_hub
+        echo "Downloading dataset from Hugging Face..."
+        python - <<'EOF'
+        from huggingface_hub import snapshot_download
+        snapshot_download(
+            repo_id="BillTheTsar/shuttle-detection-dataset",
+            local_dir="/storage/dataset",
+            repo_type="dataset"
+        )
+        EOF
 
-        echo "=== Downloading dataset from Hugging Face ==="
-        python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='BillTheTsar/shuttle-detection-dataset', local_dir='/storage/dataset', repo_type='dataset')"
-
-        echo "=== Starting training script ==="
+        echo "Starting training..."
         python scripts/train_stage1.py --data-dir /storage/dataset
+      image: paperspace/gradient-pytorch:latest
