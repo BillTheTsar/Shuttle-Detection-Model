@@ -1,26 +1,44 @@
-version: 1
+on:
+  github:
+    branches:
+      only: main  # Trigger only on pushes to main branch
 
-workflows:
-  train:
-    jobs:
-      - name: shuttle-detection-training
-        machine: A4000
-        container: paperspace/gradient-pytorch:latest
-        repo: "https://github.com/BillTheTsar/Shuttle-Detection-Model.git"
-        command: |
-          # Install dependencies
-          pip install -r requirements.txt
+jobs:
+  CloneRepo:
+    resources:
+      instance-type: C5  # CPU instance for cloning
+    outputs:
+      repo:
+        type: volume
+    uses: git-checkout@v1
+    with:
+      url: context.event.github.url
 
-          # Download dataset from Hugging Face into /storage/dataset
-          python - <<'EOF'
-          from huggingface_hub import snapshot_download
-          snapshot_download(
-              repo_id="BillTheTsar/shuttle-detection-dataset",
-              local_dir="/storage/dataset",
-              repo_type="dataset"
-          )
-          EOF
+  TrainModel:
+    resources:
+      instance-type: A4000  # GPU machine
+    needs:
+      - CloneRepo
+    inputs:
+      repo: CloneRepo.outputs.repo
+    uses: script@v1
+    with:
+      script: |
+        cd /inputs/repo
+        echo "Installing dependencies..."
+        pip install -r requirements.txt
+        pip install huggingface_hub
 
-          # Start training
-          python scripts/train_stage1.py --data-dir /storage/dataset
-version: 1
+        echo "Downloading dataset from Hugging Face..."
+        python - <<'EOF'
+        from huggingface_hub import snapshot_download
+        snapshot_download(
+            repo_id="BillTheTsar/shuttle-detection-dataset",
+            local_dir="/storage/dataset",
+            repo_type="dataset"
+        )
+        EOF
+
+        echo "Starting training..."
+        python scripts/train_stage1.py --data-dir /storage/dataset
+      image: paperspace/gradient-pytorch:latest
