@@ -12,3 +12,4 @@ torchaudio
 torchvision
 PyYAML
 datasets
+hf_xet
