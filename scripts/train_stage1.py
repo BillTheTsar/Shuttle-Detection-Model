@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.cuda.amp import GradScaler, autocast
+from torch.cuda.amp import GradScaler
+from torch import amp
 from pathlib import Path
 import os
 import time
@@ -10,6 +11,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 from stage1_model import Stage1Model
 from dataloader import get_stage1_loader
+
+import warnings
+warnings.filterwarnings("ignore", message=".*CUDA is not available.*")
 
 # ------------------------
 # Configurations
@@ -24,7 +28,7 @@ CONFIG = {
     "epochs": 10,
     "lr": 1e-4,
     "weight_decay": 1e-4,
-    "num_workers": 2,
+    "num_workers": 0,
     "device": "cuda" if torch.cuda.is_available() else "cpu",
     "save_dir": PROJECT_ROOT / "outputs/checkpoints",
     "print_freq": 50
@@ -60,7 +64,7 @@ def train_stage1():
         diff = pred_xy - target_xy
         dist = torch.sqrt((diff ** 2).sum(dim=1))  # Euclidean distance per sample
         penalty = torch.clamp(dist - margin, min=0.0)  # max(0, d - margin)
-        return (penalty ** 2).mean()  # average over batch
+        return penalty ** 2
 
     bce_loss = nn.BCEWithLogitsLoss()
 
@@ -68,7 +72,7 @@ def train_stage1():
     optimizer = optim.Adam(model.parameters(), lr=CONFIG["lr"], weight_decay=CONFIG["weight_decay"])
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.8)  # decay every 3 epochs
 
-    scaler = GradScaler()  # For mixed precision
+    scaler = GradScaler("cuda")  # For mixed precision
     best_val_loss = float("inf")
 
     # TensorBoard
@@ -90,7 +94,7 @@ def train_stage1():
             positions = batch["positions"].to(device)
             target = batch["target"].to(device)  # [B, 3] → (x, y, visibility)
 
-            with autocast():  # Mixed precision
+            with amp.autocast('cuda'):  # Mixed precision
                 output = model(current_img, past_imgs, positions)  # [B, 3]
                 pred_xy = output[:, :2]
                 pred_vis = output[:, 2]
@@ -98,8 +102,8 @@ def train_stage1():
                 loss_xy = relaxed_l2_loss(pred_xy, target[:, :2], margin=0.05)
                 loss_vis = bce_loss(pred_vis, target[:, 2])
 
-                position_weight = torch.sigmoid(pred_vis)
-                loss = position_weight * loss_xy + loss_vis
+                position_weight = torch.sigmoid(pred_vis).detach()
+                loss = (position_weight * loss_xy).mean() + loss_vis
 
             scaler.scale(loss).backward()
 
@@ -116,7 +120,7 @@ def train_stage1():
                 avg_loss = running_loss / CONFIG["print_freq"]
                 print(f"Epoch [{epoch+1}/{CONFIG['epochs']}], Step [{i+1}/{len(train_loader)}], Loss: {avg_loss:.4f}")
                 writer.add_scalar("Loss/train_total", avg_loss, global_step)
-                writer.add_scalar("Loss/train_xy", loss_xy.item(), global_step)
+                writer.add_scalar("Loss/train_xy", loss_xy.mean().item(), global_step)
                 writer.add_scalar("Loss/train_vis", loss_vis.item(), global_step)
                 running_loss = 0.0
 
@@ -132,7 +136,7 @@ def train_stage1():
                 positions = batch["positions"].to(device)
                 target = batch["target"].to(device)
 
-                with autocast():
+                with amp.autocast('cuda'):
                     output = model(current_img, past_imgs, positions)
                     pred_xy = output[:, :2]
                     pred_vis = output[:, 2]
@@ -140,8 +144,8 @@ def train_stage1():
                     loss_xy = relaxed_l2_loss(pred_xy, target[:, :2], margin=0.05)
                     loss_vis = bce_loss(pred_vis, target[:, 2])
 
-                    position_weight = torch.sigmoid(pred_vis)
-                    loss = position_weight * loss_xy + loss_vis
+                    position_weight = torch.sigmoid(pred_vis).detach()
+                    loss = (position_weight * loss_xy).mean() + loss_vis
                     val_loss += loss.item()
 
         val_loss /= len(val_loader)
