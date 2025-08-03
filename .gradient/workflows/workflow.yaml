@@ -1,12 +1,12 @@
 'on':
   github:
     branches:
-      only: main  # Trigger only on pushes to main branch
+      only: main  # Run only on pushes to main branch
 
 jobs:
   CloneRepo:
     resources:
-      instance-type: C5  # CPU instance for cloning
+      instance-type: C5
     outputs:
       repo:
         type: volume
@@ -16,7 +16,7 @@ jobs:
 
   TrainModel:
     resources:
-      instance-type: A4000  # GPU machine
+      instance-type: A4000
     needs:
       - CloneRepo
     inputs:
@@ -27,14 +27,7 @@ jobs:
       script: |
         set -e
         set -x
-
-        echo "Current directory:"
-        pwd
-        ls -al
-
         cd /inputs/repo
-        echo "Moved to /inputs/repo"
-        ls -al
 
         echo "Installing dependencies..."
         pip3 install --upgrade pip
@@ -51,8 +44,9 @@ snapshot_download(
 )
 EOF
 
-        echo "Verifying dataset contents:"
+        echo "Verifying dataset..."
         ls -R /storage/dataset
 
         echo "Starting training..."
-        python3 scripts/train_stage1.py --data-dir /storage/dataset --save-dir /storage/checkpoints
+        python3 scripts/train_stage1.py \
+          --data-dir /storage/dataset
