@@ -11,3 +11,4 @@ tensorboard-data-server
 torchaudio
 torchvision
 PyYAML
+datasets

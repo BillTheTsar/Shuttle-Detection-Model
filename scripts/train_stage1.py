@@ -7,6 +7,7 @@ from torch import amp
 from pathlib import Path
 import os
 import time
+import argparse
 from torch.utils.tensorboard import SummaryWriter
 
 from stage1_model import Stage1Model
@@ -19,18 +20,21 @@ warnings.filterwarnings("ignore", message=".*CUDA is not available.*")
 # Configurations
 # ------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent  # parent is scripts, parent of that is Shuttle Detection Model
+parser = argparse.ArgumentParser()
+parser.add_argument("--data-dir", type=str, default=str(PROJECT_ROOT / "sequences"))
+args = parser.parse_args()
 
 CONFIG = {
-    "root_dir": PROJECT_ROOT / "sequences",
+    "root_dir": Path(args.data_dir),
     "index_file": PROJECT_ROOT / "configs/dataset_index.json",
     "batch_size": 4,
     "accumulation_steps": 4,  # effective batch size = batch_size * accumulation_steps
     "epochs": 10,
     "lr": 1e-4,
     "weight_decay": 1e-4,
-    "num_workers": 0,
+    "num_workers": 2,
     "device": "cuda" if torch.cuda.is_available() else "cpu",
-    "save_dir": PROJECT_ROOT / "outputs/checkpoints",
+    "save_dir": Path("/storage/checkpoints"),
     "print_freq": 50
 }
 
