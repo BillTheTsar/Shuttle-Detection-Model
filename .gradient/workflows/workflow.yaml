@@ -1,7 +1,7 @@
-'on':
+on:
   github:
     branches:
-      only: main  # Run only on pushes to main branch
+      only: main
 
 jobs:
   CloneRepo:
@@ -23,30 +23,22 @@ jobs:
       repo: CloneRepo.outputs.repo
     uses: script@v1
     with:
-      image: paperspace/gradient-pytorch:latest
       script: |
-        set -e
-        set -x
         cd /inputs/repo
-
         echo "Installing dependencies..."
-        pip3 install --upgrade pip
-        pip3 install -r requirements.txt
-        pip3 install huggingface_hub
+        pip install -r requirements.txt
+        pip install huggingface_hub
 
         echo "Downloading dataset from Hugging Face..."
-        python3 - <<'EOF'
-from huggingface_hub import snapshot_download
-snapshot_download(
-    repo_id="BillTheTsar/shuttle-detection-dataset",
-    local_dir="/storage/dataset",
-    repo_type="dataset"
-)
-EOF
-
-        echo "Verifying dataset..."
-        ls -R /storage/dataset
+        python - <<'EOF'
+        from huggingface_hub import snapshot_download
+        snapshot_download(
+            repo_id="BillTheTsar/shuttle-detection-dataset",
+            local_dir="/storage/dataset",
+            repo_type="dataset"
+        )
+        EOF
 
         echo "Starting training..."
-        python3 scripts/train_stage1.py \
-          --data-dir /storage/dataset
+        python scripts/train_stage1.py --data-dir /storage/dataset
+      image: paperspace/gradient-pytorch:latest
