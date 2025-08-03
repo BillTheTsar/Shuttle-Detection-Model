@@ -27,12 +27,12 @@ args = parser.parse_args()
 CONFIG = {
     "root_dir": Path(args.data_dir),
     "index_file": PROJECT_ROOT / "configs/dataset_index.json",
-    "batch_size": 4,
+    "batch_size": 8,
     "accumulation_steps": 4,  # effective batch size = batch_size * accumulation_steps
     "epochs": 10,
     "lr": 1e-4,
     "weight_decay": 1e-4,
-    "num_workers": 2,
+    "num_workers": 4,
     "device": "cuda" if torch.cuda.is_available() else "cpu",
     "save_dir": Path("/storage/checkpoints"),
     "print_freq": 50
