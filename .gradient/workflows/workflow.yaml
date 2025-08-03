@@ -1,12 +1,12 @@
 on:
   github:
     branches:
-      only: main  # Trigger only on pushes to main branch
+      only: main
 
 jobs:
   CloneRepo:
     resources:
-      instance-type: C5  # CPU instance for cloning
+      instance-type: C5
     outputs:
       repo:
         type: volume
@@ -16,7 +16,7 @@ jobs:
 
   TrainModel:
     resources:
-      instance-type: A4000  # GPU machine
+      instance-type: A4000
     needs:
       - CloneRepo
     inputs:
