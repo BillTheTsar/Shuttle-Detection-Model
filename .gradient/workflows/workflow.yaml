@@ -1,40 +1,36 @@
-on:
-  github:
-    branches:
-      only: main
-
 jobs:
   CloneRepo:
+    uses: git-checkout@v1
+    with:
+      url: "{{ event.github.url }}"
     resources:
       instance-type: C5
     outputs:
       repo:
         type: volume
-    uses: git-checkout@v1
-    with:
-      url: context.event.github.url
 
   TrainModel:
-    resources:
-      instance-type: A4000
+    uses: script@v1
     needs:
       - CloneRepo
     inputs:
       repo: CloneRepo.outputs.repo
-    uses: script@v1
+    resources:
+      instance-type: A4000
     with:
+      image: "paperspace/gradient-pytorch:latest"
       script: |
         set -e
         set -x
         cd /inputs/repo
 
         echo "Installing dependencies..."
-        pip3 install --upgrade pip
-        pip3 install -r requirements.txt
-        pip3 install huggingface_hub
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install huggingface_hub
 
         echo "Downloading dataset from Hugging Face..."
-        python3 - << 'EOF'
+        python3 - <<'EOF'
 from huggingface_hub import snapshot_download
 snapshot_download(
     repo_id="BillTheTsar/shuttle-detection-dataset",
@@ -45,4 +41,3 @@ EOF
 
         echo "Starting training..."
         python3 scripts/train_stage1.py --data-dir /storage/dataset
-      image: paperspace/gradient-pytorch:latest
