@@ -1,12 +1,12 @@
-on:
+'on':
   github:
     branches:
-      only: main
+      only: main  # Trigger only on pushes to main branch
 
 jobs:
   CloneRepo:
     resources:
-      instance-type: C5
+      instance-type: C5  # CPU instance for cloning
     outputs:
       repo:
         type: volume
@@ -16,7 +16,7 @@ jobs:
 
   TrainModel:
     resources:
-      instance-type: A4000
+      instance-type: A4000  # GPU machine
     needs:
       - CloneRepo
     inputs:
@@ -27,12 +27,19 @@ jobs:
       script: |
         set -e
         set -x
+
+        echo "Current directory:"
+        pwd
+        ls -al
+
         cd /inputs/repo
+        echo "Moved to /inputs/repo"
+        ls -al
 
         echo "Installing dependencies..."
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install huggingface_hub
+        pip3 install --upgrade pip
+        pip3 install -r requirements.txt
+        pip3 install huggingface_hub
 
         echo "Downloading dataset from Hugging Face..."
         python3 - <<'EOF'
@@ -44,5 +51,8 @@ snapshot_download(
 )
 EOF
 
+        echo "Verifying dataset contents:"
+        ls -R /storage/dataset
+
         echo "Starting training..."
-        python3 scripts/train_stage1.py --data-dir /storage/dataset
+        python3 scripts/train_stage1.py --data-dir /storage/dataset --save-dir /storage/checkpoints
