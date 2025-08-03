@@ -1,24 +1,29 @@
+on:
+  github:
+    branches:
+      only: main
+
 jobs:
   CloneRepo:
-    uses: git-checkout@v1
-    with:
-      url: "{{ event.github.url }}"
     resources:
       instance-type: C5
     outputs:
       repo:
         type: volume
+    uses: git-checkout@v1
+    with:
+      url: context.event.github.url
 
   TrainModel:
-    uses: script@v1
+    resources:
+      instance-type: A4000
     needs:
       - CloneRepo
     inputs:
       repo: CloneRepo.outputs.repo
-    resources:
-      instance-type: A4000
+    uses: script@v1
     with:
-      image: "paperspace/gradient-pytorch:latest"
+      image: paperspace/gradient-pytorch:latest
       script: |
         set -e
         set -x
